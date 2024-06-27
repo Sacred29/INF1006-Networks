@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, send, emit
 from udp import broadcast_ip
+import threading
 
 app = Flask(__name__)
 socketio = SocketIO(app)
+
+clients = {}
 
 @app.route('/')
 def index():
@@ -13,6 +16,10 @@ def index():
 def broadcast():
 	broadcast_ip()
 	return "broadcast ended"
+
+@app.route('/clients')
+def get_clients():
+	return jsonify(list(clients.values()))
 
 @app.route('/api/message', methods=['POST'])
 def api_message():
@@ -27,6 +34,9 @@ def api_message():
 
 @socketio.on('connect')
 def handle_connect():
+    client_ip = request.remote_addr
+    client_id = request.sid
+    clients[client_id] = client_ip
     print('Client connected')
     send('Welcome to the WebSocket server!')
 
@@ -37,7 +47,12 @@ def handle_message(msg):
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    client_id = request.sid
+    if client_id in clients:
+        client_ip = clients.pop(client_id)
+        print(f"client disconnected: {client_ip} (ID: {client_id})")
     print('Client disconnected')
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
+
