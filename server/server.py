@@ -8,6 +8,12 @@ socketio = SocketIO(app)
 
 clients = {}
 
+def find_sid(ip):
+    for sid in clients:
+        if clients[sid] == ip:
+            return sid
+    return None
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -20,6 +26,23 @@ def broadcast():
 @app.route('/clients')
 def get_clients():
 	return jsonify(list(clients.values()))
+
+@app.route('/unicast', methods=['POST'])
+def unicast():
+    data = request.get_json()
+    target_ip = data.get('ip')
+    message = data.get('message')
+    print(f"target_ip : {target_ip}")
+    print(f"clients: {clients}")
+    if target_ip in clients.values():
+        print("SUCCESS")
+        target_sid = find_sid(target_ip)
+        socketio.send(message, to=target_sid)
+        # target_sid = clients[target_ip]
+        # socketio.emit('unicast', {message}, room=target_sid)
+        return jsonify({'status': 'success', 'message': f"message sent to {target_ip}"}), 200
+    else:
+        return jsonify({'status': 'error', 'message': f"Client {target_ip} not connected"}), 404
 
 @app.route('/api/message', methods=['POST'])
 def api_message():
@@ -52,7 +75,19 @@ def handle_disconnect():
         client_ip = clients.pop(client_id)
         print(f"client disconnected: {client_ip} (ID: {client_id})")
     print('Client disconnected')
-
+"""
+'''I think server needs to be on prod mode for rooms. Workaround method is in /unicast'''
+@socketio.on('unicast')
+def unicast(data):
+    target_ip = data.get('ip')
+    message = data.get('message')
+    if target_ip in clients:
+        target_sid = clients[target_ip]
+        send(message, room=target_sid)
+        print(f"Sent message to {target_ip}: {message}")
+    else:
+        print(f"Clent {target_ip} not connected")
+"""
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
 
