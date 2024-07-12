@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_socketio import SocketIO, send, emit
 from udp import broadcast_ip
 import threading
-
+from client_PC import broadcast_client_udp
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -38,8 +38,7 @@ def unicast():
         print("SUCCESS")
         target_sid = find_sid(target_ip)
         socketio.send(message, to=target_sid)
-        # target_sid = clients[target_ip]
-        # socketio.emit('unicast', {message}, room=target_sid)
+        
         return jsonify({'status': 'success', 'message': f"message sent to {target_ip}"}), 200
     else:
         return jsonify({'status': 'error', 'message': f"Client {target_ip} not connected"}), 404
@@ -75,19 +74,7 @@ def handle_disconnect():
         client_ip = clients.pop(client_id)
         print(f"client disconnected: {client_ip} (ID: {client_id})")
     print('Client disconnected')
-"""
-'''I think server needs to be on prod mode for rooms. Workaround method is in /unicast'''
-@socketio.on('unicast')
-def unicast(data):
-    target_ip = data.get('ip')
-    message = data.get('message')
-    if target_ip in clients:
-        target_sid = clients[target_ip]
-        send(message, room=target_sid)
-        print(f"Sent message to {target_ip}: {message}")
-    else:
-        print(f"Clent {target_ip} not connected")
-"""
+
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
 
